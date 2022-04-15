@@ -22,6 +22,9 @@ let throttleLimit = 70;
 // persistedSnapshots initially null
 // let persistedSnapshots = null;
 
+// declare message to send with array of atoms and array of selectors
+// let atomsAndSelectorsMsg;    
+
 // define a boolean that determins whether the names of atoms and selectors have been sent to the extension App
 // reused on line 152
 let sentAtomsAndSelectors = false;
@@ -42,23 +45,7 @@ export default function RecoilizeDebugger(props) {
   }
 
   const snapshot = useRecoilSnapshot();
-  console.log('Snapshot: ', snapshot)
-  console.log('Snapshot Info: ', snapshot.getInfo_UNSTABLE);
-  console.log('Store State: ', snapshot._store);
-
-
-  // DO NOT DELETE
-  // THIS IS HOW WE CAN GRAB AN ARRAY OF ATOMS AND SELECTORS FROM RECOIL BROWSER APP
-  console.log('Store State.getState: Atoms', snapshot._store.getState().knownAtoms);
-  const appsKnownAtomsArray = [...snapshot._store.getState().knownAtoms]
-  console.log('Store State.getState: Selectors', snapshot._store.getState().knownSelectors);
-  const appsKnownSelectorsArray = [...snapshot._store.getState().knownSelectors]
-  const atomsAndSelectorsMsg = {
-    atoms: appsKnownAtomsArray,
-    selectors: appsKnownSelectorsArray
-  }
-
-  
+ 
   // getNodes_UNSTABLE will return an iterable that contains atom and selector objects.
   const nodes = [...snapshot.getNodes_UNSTABLE()];
   // Local state of all previous snapshots to use for time traveling when requested by dev tools.
@@ -130,11 +117,29 @@ export default function RecoilizeDebugger(props) {
     switch (msg.data.action) {
       // Checks to see if content script has started before sending initial snapshot
       case 'contentScriptStarted':
-        console.log('the content script started IN INDEXJS OF NPM', msg);
         if (isPersistedState === 'false' || isPersistedState === null) {
           const initialFilteredSnapshot = formatAtomSelectorRelationship(
             filteredSnapshot,
           );
+          
+          // once application renders, grab the array of atoms and array of selectors
+          const appsKnownAtomsArray = [...snapshot._store.getState().knownAtoms]
+          // console.log('Store State.getState: Atoms', appsKnownAtomsArray);
+          const appsKnownSelectorsArray = [...snapshot._store.getState().knownSelectors]
+          // console.log('Store State.getState: Selectors', appsKnownSelectorsArray);
+  
+          const atomsAndSelectorsMsg = {
+            atoms: appsKnownAtomsArray,
+            selectors: appsKnownSelectorsArray
+          }
+
+          // console.log('message we are trying to send from index.js of package: ', atomsAndSelectorsMsg);
+          // chrome.storage.local.set({
+          //   will: 'hi',
+          //   ryan: 'hello'
+          // });
+          // chrome.get();
+          // console.log('CHROME.STORAGE.LOCAL: ', chrome);
 
           //creating a indexDiff variable
           //only created on initial creation of devToolData
@@ -144,7 +149,7 @@ export default function RecoilizeDebugger(props) {
           const devToolData = createDevToolDataObject(
             initialFilteredSnapshot,
             indexDiff,
-            atomsAndSelectorsMsg
+            atomsAndSelectorsMsg,
           );
           sendWindowMessage('moduleInitialized', devToolData);
         } else {
@@ -209,13 +214,14 @@ export default function RecoilizeDebugger(props) {
     );
   };
 
-  const createDevToolDataObject = (filteredSnapshot, diff) => {
+  const createDevToolDataObject = (filteredSnapshot, diff, atomsAndSelectors) => {
     if (diff === undefined) {
       return {
         filteredSnapshot: filteredSnapshot,
         componentAtomTree: formatFiberNodes(
           recoilizeRoot._reactRootContainer._internalRoot.current,
         ),
+        atomsAndSelectors
       };
     } else {
       return {
@@ -224,6 +230,7 @@ export default function RecoilizeDebugger(props) {
           recoilizeRoot._reactRootContainer._internalRoot.current,
         ),
         indexDiff: diff,
+        atomsAndSelectors
       };
     }
   };
