@@ -29,7 +29,12 @@ let throttleLimit = 70;
 // reused on line 152
 let sentAtomsAndSelectors = false;
 
+// assign the value of selectorsObject in formatRecoilizeSelectors function
+// will contain the selectors from a user application
+let selectorsObject = "yes finally"; 
+
 export default function RecoilizeDebugger(props) {
+
   // We should ask for Array of atoms and selectors.
   // Captures all atoms that were defined to get the initial state
 
@@ -45,7 +50,7 @@ export default function RecoilizeDebugger(props) {
   }
 
   const snapshot = useRecoilSnapshot();
- 
+
   // getNodes_UNSTABLE will return an iterable that contains atom and selector objects.
   const nodes = [...snapshot.getNodes_UNSTABLE()];
   // Local state of all previous snapshots to use for time traveling when requested by dev tools.
@@ -121,7 +126,7 @@ export default function RecoilizeDebugger(props) {
           const initialFilteredSnapshot = formatAtomSelectorRelationship(
             filteredSnapshot,
           );
-          
+          // console.log('SELECTOR OBJECT!!: ', selectorsObject);
           // once application renders, grab the array of atoms and array of selectors
           const appsKnownAtomsArray = [...snapshot._store.getState().knownAtoms]
           // console.log('Store State.getState: Atoms', appsKnownAtomsArray);
@@ -130,7 +135,8 @@ export default function RecoilizeDebugger(props) {
   
           const atomsAndSelectorsMsg = {
             atoms: appsKnownAtomsArray,
-            selectors: appsKnownSelectorsArray
+            selectors: appsKnownSelectorsArray,
+            $selectors: selectorsObject         // the selectors object that contain key and set / get methods as strings
           }
 
           // console.log('message we are trying to send from index.js of package: ', atomsAndSelectorsMsg);
@@ -221,7 +227,7 @@ export default function RecoilizeDebugger(props) {
         componentAtomTree: formatFiberNodes(
           recoilizeRoot._reactRootContainer._internalRoot.current,
         ),
-        atomsAndSelectors
+        atomsAndSelectors,
       };
     } else {
       return {
@@ -230,7 +236,7 @@ export default function RecoilizeDebugger(props) {
           recoilizeRoot._reactRootContainer._internalRoot.current,
         ),
         indexDiff: diff,
-        atomsAndSelectors
+        atomsAndSelectors,
       };
     }
   };
@@ -288,3 +294,33 @@ export default function RecoilizeDebugger(props) {
 
   return null;
 }
+
+// function that receives objects to be passed into selector constructor function to post a message to the window
+// cannot send an object with a property that contains a function to the window - need to stringify the set and get methods
+export function formatRecoilizeSelectors(...selectors){
+  // create object to be sent via window message from target recoil application
+  selectorsObject = {};
+  // iterate through our array of objects
+  selectors.forEach(selector => {
+    // check if the current selector object contains a set method, if so, reassign it to a stringified version
+    if (selector.hasOwnProperty('set')){
+      selector.set = selector.set.toString();
+    }
+    // check if the current selector object contains a get method, if so, reassign it to a stringified version
+    if (selector.hasOwnProperty('get')){
+      selector.get = selector.get.toString();
+    }
+    // store the selector in the payload object - providing its property name as the 'key' property of the current selector object
+    // providing the object the property name of selector key will give easy searchability in GUI application for selector dropdown
+    selectorsObject[selector.key] = selector;
+  });
+
+  //console.log("selectorsObject: ", selectorsObject);
+  //console.log("selectorsObject.payload: ", selectorsObject.payload);
+
+  // return window post message passing in selectorsObject
+  //setTimeout(() => window.postMessage(selectorsObject, '*'), 2000)
+  //return window.postMessage(selectorsObject, '*');
+}
+
+
