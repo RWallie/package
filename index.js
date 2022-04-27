@@ -98,7 +98,7 @@ export default function RecoilizeDebugger(props) {
         : [],
     };
   });
-
+  
   // React lifecycle hook on re-render
   useEffect(() => {
     // Window listener for messages from dev tool UI & background.js
